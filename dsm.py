@@ -1,52 +1,110 @@
-# File: dsm.py
-# Implementation of the Direct Sinusoidal Method (DSM) for crossed-cylinder superposition and sensitivity analysis.
+"""
+DSM Implementation
+Double-Angle Summation Method (DSM)
+
+Author: Ahmad Shehab
+"""
 
 import numpy as np
 
-def dsm_summation(C, theta):
+
+def dsm_summation(C, theta_deg):
     """
-    Compute the resultant cylinder magnitude and axis using DSM.
-    
-    Parameters:
-    C (array): Cylinder powers (negative for convention).
-    theta (array): Axes in degrees.
-    
-    Returns:
-    C_total (float): Resultant cylinder magnitude.
-    theta_total (float): Resultant axis in degrees.
+    Compute resultant magnitude and orientation using DSM.
+
+    Parameters
+    ----------
+    C : array-like
+        Magnitudes
+    theta_deg : array-like
+        Angles in degrees
+
+    Returns
+    -------
+    C_total : float
+        Resultant magnitude
+    theta_total : float
+        Resultant angle in degrees
     """
-    theta_rad = np.deg2rad(theta)
+
+    C = np.asarray(C, dtype=float)
+    theta_deg = np.asarray(theta_deg, dtype=float)
+
+    theta_rad = np.deg2rad(theta_deg)
+
     X_net = np.sum(C * np.cos(2 * theta_rad))
     Y_net = np.sum(C * np.sin(2 * theta_rad))
+
     C_total = np.sqrt(X_net**2 + Y_net**2)
+
     theta_total = 0.5 * np.rad2deg(np.arctan2(Y_net, X_net))
+
     return C_total, theta_total
 
-def rotational_sensitivity(C, theta, i, delta_theta_deg=1.0, C_total=None):
+
+def rotational_sensitivity(C, theta_deg, i, delta_theta_deg=1.0):
     """
-    Compute first-order change in cylinder magnitude for perturbation in lens i (Theorem 1).
-    
-    Parameters:
-    C (array): Cylinder powers.
-    theta (array): Axes in degrees.
-    i (int): Index of perturbed lens.
-    delta_theta_deg (float): Perturbation in degrees.
-    C_total (float): Optional precomputed C_total.
-    
-    Returns:
-    delta_C (float): Predicted change in C_total.
+    Compute sensitivity to angular perturbation.
+
+    Parameters
+    ----------
+    C : array-like
+    theta_deg : array-like
+    i : index of perturbed element
+    delta_theta_deg : float
+
+    Returns
+    -------
+    delta_C : float
     """
-    theta_rad = np.deg2rad(theta)
+
+    C = np.asarray(C, dtype=float)
+    theta_deg = np.asarray(theta_deg, dtype=float)
+
+    theta_rad = np.deg2rad(theta_deg)
+
     X_net = np.sum(C * np.cos(2 * theta_rad))
     Y_net = np.sum(C * np.sin(2 * theta_rad))
-    if C_total is None:
-        C_total = np.sqrt(X_net**2 + Y_net**2)
-    if C_total < 1e-10:
-        raise ValueError("C_total near zero; use Corollary approximation.")
-    dC_dtheta = (2 * C[i] / C_total) * (Y_net * np.cos(2 * theta_rad[i]) - X_net * np.sin(2 * theta_rad[i]))
-    delta_theta_rad = np.deg2rad(delta_theta_deg)
-    return dC_dtheta * delta_theta_rad
 
+    C_total = np.sqrt(X_net**2 + Y_net**2)
+
+    if C_total < 1e-15:
+        raise ValueError("Resultant magnitude too small")
+
+    derivative = (
+        2 * C[i] / C_total
+    ) * (
+        Y_net * np.cos(2 * theta_rad[i])
+        - X_net * np.sin(2 * theta_rad[i])
+    )
+
+    delta_theta_rad = np.deg2rad(delta_theta_deg)
+
+    delta_C = derivative * delta_theta_rad
+
+    return delta_C
+
+
+def near_spherical_approximation(C_i, phi_deg):
+    """
+    Near-spherical approximation corollary.
+    """
+
+    phi_rad = np.deg2rad(phi_deg)
+
+    return 2 * abs(C_i) * abs(phi_rad)
+
+
+if __name__ == "__main__":
+    # Example usage
+
+    C = [10, 5, 7]
+    theta = [30, 60, 120]
+
+    C_total, theta_total = dsm_summation(C, theta)
+
+    print("Resultant magnitude:", C_total)
+    print("Resultant angle:", theta_total)
 def near_spherical_approximation(C_i, phi_deg):
     """
     Corollary 1: Induced cylinder for small misalignment near perfect correction.
@@ -59,4 +117,5 @@ def near_spherical_approximation(C_i, phi_deg):
     delta_C (float): Approximate induced cylinder.
     """
     phi_rad = np.deg2rad(phi_deg)
+
     return 2 * np.abs(C_i) * np.abs(phi_rad)
